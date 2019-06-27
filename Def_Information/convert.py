@@ -262,3 +262,85 @@ def shifr_duplicate_key(data,key):
             answer += chr(ord(l) ^ ord(k))
             #print('answer',answer)
     return bytes.hex(answer.encode())
+
+def chasti_text(text,key):
+    massiv_chastei = ['' for x in range(key)]            
+    for x in range(0, len(text), key):
+        symbol = text[x:x+key]
+        for y in range(len(symbol)):
+            massiv_chastei[y] += symbol[y]
+    return massiv_chastei 
+
+def get_often_chs(text, count=5):
+    ch_count = {}
+    for ch in text:
+        if not ch in ch_count: ch_count[ch]=0
+        ch_count[ch]+=1
+    ch_sort = sorted(ch_count, reverse=True, key=lambda x: ch_count[x])
+    return ch_sort[:count]
+
+def get_key_variant(often_chs):
+    key_var={}
+    #print(top_char)
+    top_char = [' ', 'e', 'u', 'o', 'i', 'a', 't', 'm', 'r', 'n']
+    for ch in often_chs:
+        for tch in top_char:
+            key_ch = chr(ord(ch) ^ ord(tch))
+            if not key_ch in key_var: key_var[key_ch]=0
+            key_var[key_ch]+=1
+    return sorted(key_var, reverse=True, key=lambda x: key_var[x])
+
+def checked_leng_key(text):
+    max_symb = [0,0]#максимально значение % и номер сдвига
+    for i in range(1, int(100)+1):#берем длину ключа 100, потому что люди не будут делать ключ длиней, чем 100 символов
+        text_obrez = text[-i:]+text[:-i]
+        step = shifr_duplicate_key(text, text_obrez)
+        percent = round(100*chistot_symbols(step)[0][1]/len(text),4)
+        if percent > max_symb[0]:
+            max_symb[0] = percent
+            max_symb[1] = i
+        #print(f'Смещение: {i}, Процент: {percent}')
+    print(f'Максимальный процент повторяющихся символов: {max_symb[0]}, Найден при смещении: {max_symb[1]}')
+    return max_symb[1]
+
+def shifr_key_str(massiv_chastotnosti):
+    key = ''
+    for line in massiv_chastotnosti:
+        mas_chastot = get_often_chs(line)
+        #print('often_chs',mas_chastot)
+        key_var = get_key_variant(mas_chastot)
+        #print('key_var',key_var)
+
+        key_check = set("'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz 1234567890,.-)(")
+        key_var_ok=[]
+        for k in key_var:
+            decode = shifr_duplicate_key(line, k)
+            if len(set(decode)-key_check)<=3:
+                key_var_ok.append(k)
+        if len(key_var_ok)>0: key+=key_var_ok[0]
+        else: key+='?'
+    
+    return key
+
+def shift_text(text):
+    return shifr_key_str(chasti_text(text,checked_leng_key(text)))
+
+def checked_symbolds(line):
+    top_symbols_chastot = ['20', '65', '75', '6f', '69', '61', '74', '6d', '72', '6e']
+    often = chistot_symbols(line)
+    if len(often)-len(set([x[0] for x in convert.chistot_symbols('2053697420766F6C7570746174656D20646F6C6F722065697573206164697069736369206D6F646920736974')]) - set(top_symbols_chastot)) < 3:
+        return False
+    return True
+
+def check_stroka(file):
+    for line in file:
+        if not checked_symbolds(line):
+            return line
+    return False
+
+def cheked_text_decrypt(file):
+    shifr_line = check_stroka(file)
+    if not shifr_line: return 'Нет зашифрованной строки!'
+    
+    answer = decode_stroka(shifr_line)
+    return answer
