@@ -1,52 +1,56 @@
 import numpy as np
 
 
-def check_gradient(f, x, delta=1e-5, tol = 1e-4):
-    '''
+def check_gradient(f, x, delta=1e-5, tol=1e-4):
+    """
     Checks the implementation of analytical gradient by comparing
     it to numerical gradient using two-point formula
+
     Arguments:
       f: function that receives x and computes value and gradient
       x: np array, initial point where gradient is checked
       delta: step to compute numerical gradient
       tol: tolerance for comparing numerical and analytical gradient
+
     Return:
       bool indicating whether gradients match or not
-    '''
-    
+    """
     assert isinstance(x, np.ndarray)
     assert x.dtype == np.float
-    
+
     orig_x = x.copy()
     fx, analytic_grad = f(x)
     assert np.all(np.isclose(orig_x, x, tol)), "Functions shouldn't modify input variables"
 
-    assert analytic_grad.shape == x.shape
     analytic_grad = analytic_grad.copy()
+    assert analytic_grad.shape == x.shape
 
-    # We will go through every dimension of x and compute numeric
-    # derivative for it
     it = np.nditer(x, flags=['multi_index'], op_flags=['readwrite'])
     while not it.finished:
         ix = it.multi_index
         analytic_grad_at_ix = analytic_grad[ix]
-        mask = np.zeros(x.shape)
-        mask[ix]=delta
-        x_plus = x+mask
-        x_minus = x-mask
-        f_plus = f(x_plus)
-        f_minus = f(x_minus)
-        numeric_grad_at_ix = (f_plus[0]-f_minus[0])/(2*delta)
-        # TODO compute value of numeric gradient of f to idx
+
+        orig_x_val = orig_x[ix]
+
+        orig_x[ix] = orig_x_val + delta
+        fx_plus, _ = f(orig_x)
+
+        orig_x[ix] = orig_x_val - delta
+        fx_minus, _ = f(orig_x)
+
+        orig_x[ix] = orig_x_val
+
+        numeric_grad_at_ix = (fx_plus - fx_minus) / (2 * delta)
+
         if not np.isclose(numeric_grad_at_ix, analytic_grad_at_ix, tol):
-            print("Gradients are different at %s. Analytic: %2.5f, Numeric: %2.5f" % (ix, analytic_grad_at_ix, numeric_grad_at_ix))
+            print("Gradients are different at %s. Analytic: %2.5f, Numeric: %2.5f" % (
+                  ix, analytic_grad_at_ix, numeric_grad_at_ix))
             return False
 
         it.iternext()
-        print("Gradients are equal at %s. Analytic: %2.5f, Numeric: %2.5f" % (ix, analytic_grad_at_ix, numeric_grad_at_ix))
+
     print("Gradient check passed!")
     return True
-
 
 
 def check_layer_gradient(layer, x, delta=1e-5, tol=1e-4):
@@ -127,7 +131,7 @@ def check_model_gradient(model, X, y,
     params = model.params()
 
     for param_key in params:
-        print("Checking gradient for %s" % str(param_key))
+        print("Checking gradient for %s" % param_key)
         param = params[param_key]
         initial_w = param.value
 

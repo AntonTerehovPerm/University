@@ -1,7 +1,6 @@
 import numpy as np
 
 
-
 def l2_regularization(W, reg_strength):
     """
     Computes L2 regularization loss on weights and its gradient
@@ -14,81 +13,71 @@ def l2_regularization(W, reg_strength):
       loss, single value - l2 regularization loss
       gradient, np.array same shape as W - gradient of weight by l2 loss
     """
-    # TODO: Copy from the previous assignment
-    loss = reg_strength * np.sum(W * W)
-    grad = reg_strength * 2 * W
+    loss = reg_strength * np.trace(np.matmul(W.T, W))   # L2(W) = λ * tr(W.T * W)
+    grad = 2 * reg_strength * W                         # dL2(W)/dW = 2 * λ * W
+    return loss, grad   # L2(W), dL2(W)/dW
 
-    return loss, grad
 
 def softmax(predictions):
-    '''
+    """
     Computes probabilities from scores
+
     Arguments:
-      predictions, np array, shape is either (N) or (batch_size, N) -
-        classifier output
+      predictions, np array, shape is either (N) or (batch_size, N) - classifier output
+
     Returns:
-      probs, np array of the same shape as predictions - 
-        probability for every class, 0..1
-    '''
-    # TODO implement softmax
-    # Your final implementation shouldn't have any loops
+      probs, np array of the same shape as predictions - probability for every class, 0..1
+    """
 
-    if predictions.ndim > 1:
-        predictions -= np.max(predictions, axis=1).transpose().reshape((predictions.shape[0], 1))
-        result = np.exp(predictions) / np.sum(np.exp(predictions), axis=1).transpose().reshape((predictions.shape[0], 1))
-    else:
-        predictions -= np.max(predictions)
-        result = np.exp(predictions) / np.sum(np.exp(predictions))
+    maximums = np.amax(predictions, axis=1).reshape(predictions.shape[0], 1)
+    predictions_ts = predictions - maximums
 
-    return result
+    predictions_exp = np.exp(predictions_ts)
+    sums = np.sum(predictions_exp, axis=1).reshape(predictions_exp.shape[0], 1)
+    result = predictions_exp / sums
+
+    return result   # S
+
 
 def cross_entropy_loss(probs, target_index):
-    '''
+    """
     Computes cross-entropy loss
+
     Arguments:
-      probs, np array, shape is either (N) or (batch_size, N) -
-        probabilities for every class
-      target_index: np array of int, shape is (1) or (batch_size) -
-        index of the true class for given sample(s)
+      probs, np array, shape is either (N) or (batch_size, N) - probabilities for every class
+      target_index: np array of int, shape is (1) or (batch_size) - index of the true class for given sample(s)
+
     Returns:
       loss: single value
-    '''
-    # TODO implement cross-entropy
-    # Your final implementation shouldn't have any loops
-
-    if hasattr(target_index, '__len__'):
-        ans = -np.sum(np.log(probs[np.arange(len(target_index)), target_index.reshape(1, -1)]))
-    else:
-        ans = -np.log(probs[target_index])
-
-    return ans
-
-def softmax_with_cross_entropy(preds, target_index):
     """
-    Computes softmax and cross-entropy loss for model predictions,
-    including the gradient
+
+    rows = np.arange(target_index.shape[0])
+    cols = target_index
+
+    return np.mean(-np.log(probs[rows, cols]))  # L
+
+
+def softmax_with_cross_entropy(predictions, target_index):
+    """
+    Computes softmax and cross-entropy loss for model predictions, including the gradient
 
     Arguments:
-      predictions, np array, shape is either (N) or (batch_size, N) -
-        classifier output
-      target_index: np array of int, shape is (1) or (batch_size) -
-        index of the true class for given sample(s)
+      predictions, np array, shape is either (N) or (batch_size, N) - classifier output
+      target_index: np array of int, shape is (1) or (batch_size) - index of the true class for given sample(s)
 
     Returns:
       loss, single value - cross-entropy loss
       dprediction, np array same shape as predictions - gradient of predictions by loss value
     """
-    # TODO: Copy from the previous assignment
-    loss = cross_entropy_loss(softmax(preds.copy()), target_index)
-    mask = np.zeros(preds.shape)
-    if hasattr(target_index, '__len__'):
-        mask[np.arange(len(target_index)), target_index.reshape(1, -1)] = 1
-    else:
-        mask[target_index] = 1
 
-    d_preds = softmax(preds.copy()) - mask
+    probs = softmax(predictions)                    # S
+    loss = cross_entropy_loss(probs, target_index)  # L
 
-    return loss, d_preds
+    indicator = np.zeros(probs.shape)
+    indicator[np.arange(probs.shape[0]), target_index] = 1      # 1(y)
+    dprediction = (probs - indicator) / predictions.shape[0]    # dL/dZ = (S - 1(y)) / N
+
+    return loss, dprediction
 
 
 class Param:
@@ -101,17 +90,17 @@ class Param:
         self.value = value
         self.grad = np.zeros_like(value)
 
+    def reset_grad(self):
+        self.grad = np.zeros_like(self.value)
+
 
 class ReLULayer:
     def __init__(self):
-        self.mask = None
+        self.d_out_result = None
 
     def forward(self, X):
-        # TODO: Implement forward pass
-        # Hint: you'll need to save some information about X
-        # to use it later in the backward pass
-        self.mask = (X > 0)
-        return X * self.mask
+        self.d_out_result = np.greater(X, 0).astype(float)  # dZ/dX
+        return np.maximum(X, 0)                             # Z
 
     def backward(self, d_out):
         """
@@ -125,17 +114,12 @@ class ReLULayer:
         d_result: np array (batch_size, num_features) - gradient
           with respect to input
         """
-        # TODO: Implement backward pass
-        # Your final implementation shouldn't have any loops
-        d_result = d_out * self.mask
-        return d_result
+        d_result = np.multiply(d_out, self.d_out_result)    # dL/dX = dL/dZ * dZ/dX
+        return d_result     # dL/dX
 
     def params(self):
         # ReLU Doesn't have any parameters
         return {}
-    
-    def reset_grad(self):
-        pass
 
 
 class FullyConnectedLayer:
@@ -145,43 +129,29 @@ class FullyConnectedLayer:
         self.X = None
 
     def forward(self, X):
-        self.X = X.copy()
-        return X.dot(self.W.value) + self.B.value
-        # TODO: Implement forward pass
-        # Your final implementation shouldn't have any loops
-        raise Exception("Not implemented!")
+        self.X = X
+        return np.matmul(X, self.W.value) + self.B.value
 
     def backward(self, d_out):
         """
-        Backward pass
-        Computes gradient with respect to input and
-        accumulates gradients within self.W and self.B
+        Backward pass:
+        computes gradient with respect to input and accumulates gradients within self.W and self.B
 
         Arguments:
-        d_out, np array (batch_size, n_output) - gradient
-           of loss function with respect to output
+        d_out, np array (batch_size, n_output) - gradient of loss function with respect to output
 
         Returns:
-        d_result: np array (batch_size, n_input) - gradient
-          with respect to input
+        d_result: np array (batch_size, n_input) - gradient with respect to input
         """
-        # TODO: Implement backward pass
-        # Compute both gradient with respect to input
-        # and gradients with respect to W and B
-        # Add gradients of W and B to their `grad` attribute
 
-        # It should be pretty similar to linear classifier from
-        # the previous assignment
+        d_result = np.matmul(d_out, self.W.value.T)     # dL/dX = dL/dZ * dZ/dX = dL/dZ * W.T
+        dLdW = np.matmul(self.X.T, d_out)               # dL/dW = dL/dZ * dZ/dW = X.T * dL/dZ
+        dLdB = 2 * np.mean(d_out, axis=0)               # dL/dW = dL/dZ * dZ/dB = I * dL/dZ
 
-        self.W.grad = self.X.transpose().dot(d_out)
-        E = np.ones(shape=(1, self.X.shape[0]))
-        self.B.grad = E.dot(d_out)
+        self.W.grad += dLdW
+        self.B.grad += dLdB
 
-        return d_out.dot(self.W.value.transpose())
+        return d_result     # dL/dX
 
     def params(self):
         return {'W': self.W, 'B': self.B}
-    
-    def reset_grad(self):
-        self.W.grad = np.zeros_like(self.W.value)
-        self.B.grad = np.zeros_like(self.B.value)
