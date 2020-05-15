@@ -1,0 +1,11 @@
+encoding "utf8";
+
+import "base.proto";
+import "articles_base.proto";
+
+import "facttypes.proto";
+
+TAuxDicArticle "музыка"
+{
+	key = {"tomita:albums.cxx" type=CUSTOM}
+}

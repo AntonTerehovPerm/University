@@ -1,0 +1,10 @@
+import "base.proto"; 
+import "facttypes_base.proto";
+
+message Albums: NFactType.TFact
+{
+	required string Name = 1;
+	optional string Translate = 2;
+	required string Author = 3;
+	required string Date = 4;
+}

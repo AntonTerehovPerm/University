@@ -1,0 +1,21 @@
+encoding "utf8";
+
+TTextMinerConfig {
+  Dictionary = "mydic.gzt";
+  Articles = [
+	//{ Name = "даты"},
+    { Name = "музыка" }
+  ],
+  Facts = [
+    { Name = "Albums" }
+  ],
+  Input = { 
+    File = "input\\Music_albums_comma.txt";
+  }
+  PrettyOutput = "output\\output.html";
+  PrintTree="output\\output_tree.txt";
+  Output = { 
+    File = "output\\output.txt";
+    Format = text; 
+  }
+}
